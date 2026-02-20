@@ -1,8 +1,11 @@
 import * as vscode from 'vscode';
 import { MemorySizeHoverProvider } from './hoverProvider';
+import { TypeInfoProvider } from './typeInfo';
 
 export function activate(context: vscode.ExtensionContext) {
     const provider = new MemorySizeHoverProvider();
+    const typeProvider = TypeInfoProvider.getInstance();
+
 
     // Register ONLY ONE hover provider for all C/C++ files
     const disposable = vscode.languages.registerHoverProvider(
@@ -14,8 +17,22 @@ export function activate(context: vscode.ExtensionContext) {
         ],
         provider
     );
+    
+    const configDisposable = vscode.workspace.onDidChangeConfiguration((event) => {
+        if (
+            event.affectsConfiguration('memorySizeHover.architecture') ||
+            event.affectsConfiguration('C_Cpp.default.intelliSenseMode')
+        ) {
+            typeProvider.refreshArchitecture();
+            provider.clearCache();
+        }
 
-    context.subscriptions.push(disposable);
+        if (event.affectsConfiguration('memorySizeHover.showArchitecture')) {
+            provider.clearCache();
+        }
+    });
+
+    context.subscriptions.push(disposable, configDisposable);
 }
 
 export function deactivate() {}
