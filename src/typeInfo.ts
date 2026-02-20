@@ -1,10 +1,13 @@
 import * as os from 'os';
+import * as vscode from 'vscode';
 
 export interface TypeInfo {
     x32: { size: number; alignment: number };
     x64: { size: number; alignment: number };
     desc?: string;
 }
+
+type ArchitectureMode = 'auto' | 'x32' | 'x64' | 'target';
 
 export class TypeInfoProvider {
     private static instance: TypeInfoProvider;
@@ -14,6 +17,7 @@ export class TypeInfoProvider {
     private constructor() {
         this.architecture = os.arch();
         this.is64Bit = this.architecture.includes('64');
+        this.refreshArchitecture();
     }
 
     public static getInstance(): TypeInfoProvider {
@@ -29,6 +33,12 @@ export class TypeInfoProvider {
 
     public is64BitArch(): boolean {
         return this.is64Bit;
+    }
+
+    public refreshArchitecture(): void {
+        const resolved = this.resolveArchitecture();
+        this.architecture = resolved.arch;
+        this.is64Bit = resolved.is64Bit;
     }
 
     public getTypeInfo(type: string): TypeInfo | null {
@@ -123,7 +133,7 @@ export class TypeInfoProvider {
             'uintmax_t': { x32: {size: 8, alignment: 8}, x64: {size: 8, alignment: 8}, desc: 'Maximum width unsigned integer' }
         };
 
-        return typeInfo[type.toLowerCase()] || null;
+        return typeInfo[normalizedType] || null;
     }
 
     public getMemorySize(type: string): number | null {
@@ -140,5 +150,55 @@ export class TypeInfoProvider {
 
     public getPointerSize(): number {
         return this.is64Bit ? 8 : 4;
+    }
+
+    private resolveArchitecture(): { is64Bit: boolean; arch: string } {
+        const config = vscode.workspace.getConfiguration('memorySizeHover');
+        const mode = config.get<ArchitectureMode>('architecture', 'auto');
+        const hostArch = os.arch();
+        const hostIs64 = hostArch.includes('64');
+
+        if (mode === 'x32') {
+            return { is64Bit: false, arch: 'x32 (manual)' };
+        }
+
+        if (mode === 'x64') {
+            return { is64Bit: true, arch: 'x64 (manual)' };
+        }
+
+        if (mode === 'target') {
+            const targetArch = this.detectTargetArchitecture();
+            if (targetArch) {
+                return targetArch;
+            }
+            return {
+                is64Bit: hostIs64,
+                arch: `${hostArch} (target unavailable, host fallback)`
+            };
+        }
+
+        return {
+            is64Bit: hostIs64,
+            arch: `${hostArch} (host)`
+        };
+    }
+
+    private detectTargetArchitecture(): { is64Bit: boolean; arch: string } | null {
+        const cppConfig = vscode.workspace.getConfiguration('C_Cpp');
+        const mode = cppConfig.get<string>('default.intelliSenseMode', '').toLowerCase();
+
+        if (!mode) {
+            return null;
+        }
+
+        if (mode.includes('x64') || mode.includes('amd64') || mode.includes('arm64') || mode.includes('aarch64')) {
+            return { is64Bit: true, arch: `x64 (target: ${mode})` };
+        }
+
+        if (mode.includes('x86') || mode.includes('i386') || mode.includes('i686') || mode.includes('arm') || mode.includes('32')) {
+            return { is64Bit: false, arch: `x32 (target: ${mode})` };
+        }
+
+        return null;
     }
 }
