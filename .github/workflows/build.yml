@@ -3,7 +3,7 @@ name: Build Extension
 on:
   push:
     branches:
-      - build_test
+      - build-test
       - main
   pull_request:
     branches:
