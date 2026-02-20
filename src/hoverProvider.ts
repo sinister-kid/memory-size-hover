@@ -12,6 +12,10 @@ export class MemorySizeHoverProvider implements vscode.HoverProvider {
         this.structAnalyzer = new StructAnalyzer();
     }
 
+    public clearCache(): void {
+        this.structCache.clear();
+    }
+
     provideHover(
         document: vscode.TextDocument,
         position: vscode.Position,
