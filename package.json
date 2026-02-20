@@ -44,7 +44,17 @@
           "type": "boolean",
           "default": true,
           "description": "Show architecture information in hover tooltip"
-        }
+        },
+        "memorySizeHover.architecture": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "target",
+            "x64",
+            "x32"
+          ],
+          "default": "auto",
+          "markdownDescription": "Architecture used for size calculations. `auto` uses host arch, `target` tries to read `C_Cpp.default.intelliSenseMode` and if fails fallback to host arch."
       }
     }
   },
